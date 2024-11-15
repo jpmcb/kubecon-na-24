@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: vllm-daemonset
+  namespace: vllm-ns
+spec:
+  selector:
+    matchLabels:
+      app: vllm
+  template:
+    metadata:
+      labels:
+        app: vllm
+    spec:
+      nodeSelector:
+        # For select only running on GPU nodes: see your GPU and infra provider
+        # for relevant and appropriate selectors
+        accelerator: nvidia
+      tolerations:
+        - key: sku
+          operator: Equal
+          value: gpu
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+          args:
+            - "--model"
+            - "TheBloke/Mistral-7B-Instruct-v0.2-AWQ"
+            - "--dtype"
+            - "half"
+            - "--quantization"
+            - "awq"
+            - "--gpu-memory-utilization"
+            - "0.95"
+            - "--enforce-eager"
+          env:
+            - name: HUGGINGFACE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: vllm-huggingface-token
+                  key: HUGGINGFACE_TOKEN
+
